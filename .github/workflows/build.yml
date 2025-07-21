@@ -1,57 +1,49 @@
 name: Build BetterWX-UI
 
-# 控制工作流程的触发时机
 on:
   push:
-    branches: [ "main", "master" ] # 当推送到 main 或 master 分支时触发
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master" ] # 当有针对 main 或 master 分支的 Pull Request 时触发
-  workflow_dispatch: # 允许手动触发
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    # 定义运行环境，这里使用最新的 Ubuntu 系统
     runs-on: ubuntu-latest
 
     steps:
-      # 第一步：检出代码
-      # 这个步骤会下载你的仓库代码到 Actions 的虚拟机中
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 第二步：安装 Node.js
-      # BetterWX-UI 的前端部分需要 Node.js 环境
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # 可以根据项目需要指定版本
+          node-version: '18'
 
-      # 第三步：安装 Rust
-      # Tauri 的后端是基于 Rust 的
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # 第四步：安装 Linux 系统依赖
-      # Tauri 在 Linux 上编译需要一些系统库
+      # 👇 *** 这是被修正的步骤 *** 👇
       - name: Install dependencies (Ubuntu)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
-      # 第五步：安装前端依赖
-      # 相当于在本地运行 npm install
       - name: Install frontend dependencies
         run: npm install
 
-      # 第六步：编译 Tauri 应用
-      # 运行 tauri build 命令，--verbose 参数可以输出更详细的日志，方便排查问题
       - name: Build the application
-        run: npm run tauri build -- --verbose
+        # 使用 tauri-action 可以更好地处理缓存和打包
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: app-v__VERSION__ # 可选：用于创建 GitHub Release 的标签模板
+          releaseName: 'App v__VERSION__' # 可选：Release 的名称
+          releaseBody: 'See the assets to download this version.' # 可选：Release 的描述
+          releaseDraft: true # 可选：创建为草稿 Release
+          prerelease: false # 可选：标记为预发布
 
-      # 第七步：上传构建产物
-      # 将编译好的文件打包上传，方便下载
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BetterWX-UI-Build-${{ github.run_id }} # 产物的名称
+          name: BetterWX-UI-Build-${{ github.run_id }}
           path: src-tauri/target/release/bundle/ # BetterWX-UI 编译后产物的路径
